@@ -17,18 +17,18 @@ import horovod.tensorflow.keras as hvd
 hvd.init()
 
 # Horovod: pin GPU to be used to process local rank (one GPU per process)
-config = tf.ConfigProto()
+config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = str(hvd.local_rank())
-K.set_session(tf.Session(config=config))
+K.set_session(tf.compat.v1.Session(config=config))
 
-batch_size = 128
+batch_size = int(os.getenv('BATCH_SIZE', 128))
 num_classes = 10
 
 model_dir = os.path.abspath(os.environ.get('PS_MODEL_PATH', os.getcwd() + '/models') + '/horovod-mnist')
 export_dir = os.path.abspath(os.environ.get('PS_MODEL_PATH', os.getcwd() + '/models'))
 # Horovod: adjust number of epochs based on number of GPUs.
-epochs = int(math.ceil(12.0 / hvd.size()))
+epochs = int(math.ceil(int(os.getenv('TRAIN_EPOCHS', 12.0)) / hvd.size()))
 
 # Input image dimensions
 img_rows, img_cols = 28, 28
@@ -115,9 +115,12 @@ if hvd.rank() == 0:
     export_path = os.path.join(export_dir, str(version))
     print('export_path = {}\n'.format(export_path))
 
-    tf.saved_model.simple_save(
-        keras.backend.get_session(),
-        export_path,
-        inputs={'image': model.input},
-        outputs={t.name:t for t in model.outputs})
+#     tf.saved_model.simple_save(
+#         keras.backend.get_session(),
+#         export_path,
+#         inputs={'image': model.input},
+#         outputs={t.name:t for t in model.outputs})
+    
+    model.save(export_path, save_format='tf')
+    
     print('\nSaved model:')
